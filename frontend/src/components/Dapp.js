@@ -5,8 +5,7 @@ import { ethers } from "ethers";
 
 // We import the contract's artifacts and address here, as we are going to be
 // using them with ethers
-import TokenArtifact from "../contracts/Token.json";
-import contractAddress from "../contracts/contract-address.json";
+import CroBridgeArtifact from "../contracts/CroBridge.json";
 
 // All the logic of this dapp is contained in the Dapp component.
 // These other components are just presentational ones: they don't have any
@@ -22,7 +21,7 @@ import { NoTokensMessage } from "./NoTokensMessage";
 // This is the Hardhat Network id, you might change it in the hardhat.config.js
 // Here's a list of network ids https://docs.metamask.io/guide/ethereum-provider.html#properties
 // to use when deploying to other networks.
-const HARDHAT_NETWORK_ID = '31337';
+const HARDHAT_NETWORK_ID = '338';
 
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
@@ -44,8 +43,6 @@ export class Dapp extends React.Component {
     // We store multiple things in Dapp's state.
     // You don't need to follow this pattern, but it's an useful example.
     this.initialState = {
-      // The info of the token (i.e. It's Name and symbol)
-      tokenData: undefined,
       // The user's address and balance
       selectedAddress: undefined,
       balance: undefined,
@@ -82,24 +79,15 @@ export class Dapp extends React.Component {
       );
     }
 
-    // If the token data or the user's balance hasn't loaded yet, we show
-    // a loading component.
-    if (!this.state.tokenData || !this.state.balance) {
-      return <Loading />;
-    }
-
     // If everything is loaded, we render the application.
     return (
       <div className="container p-4">
         <div className="row">
           <div className="col-12">
-            <h1>
-              {this.state.tokenData.name} ({this.state.tokenData.symbol})
-            </h1>
             <p>
               Welcome <b>{this.state.selectedAddress}</b>, you have{" "}
               <b>
-                {this.state.balance.toString()} {this.state.tokenData.symbol}
+                {this.state.balance.toString()}
               </b>
               .
             </p>
@@ -152,7 +140,6 @@ export class Dapp extends React.Component {
                 transferTokens={(to, amount) =>
                   this._transferTokens(to, amount)
                 }
-                tokenSymbol={this.state.tokenData.symbol}
               />
             )}
           </div>
@@ -184,6 +171,7 @@ export class Dapp extends React.Component {
 
     this._initialize(selectedAddress);
 
+
     // We reinitialize it whenever the user changes their account.
     window.ethereum.on("accountsChanged", ([newAddress]) => {
       this._stopPollingData();
@@ -211,6 +199,7 @@ export class Dapp extends React.Component {
     // We first store the user's address in the component's state
     this.setState({
       selectedAddress: userAddress,
+      balance: ethers.BigNumber.from(0)
     });
 
     // Then, we initialize ethers, fetch the token's data, and start polling
@@ -218,21 +207,17 @@ export class Dapp extends React.Component {
 
     // Fetching the token data and the user's balance are specific to this
     // sample project, but you can reuse the same initialization pattern.
-    this._intializeEthers();
-    this._getTokenData();
+    this._initializeEthers();
     this._startPollingData();
   }
 
-  async _intializeEthers() {
+  async _initializeEthers() {
     // We first initialize ethers by creating a provider using window.ethereum
     this._provider = new ethers.providers.Web3Provider(window.ethereum);
-
-    // When, we initialize the contract using that provider and the token's
-    // artifact. You can do this same thing with your contracts.
-    this._token = new ethers.Contract(
-      contractAddress.Token,
-      TokenArtifact.abi,
-      this._provider.getSigner(0)
+    this._contract = new ethers.Contract(
+        "0xB6463D7a11065ceAea3FE338659659aC2192D8F6",
+        CroBridgeArtifact.abi,
+        this._provider.getSigner(0)
     );
   }
 
@@ -255,17 +240,8 @@ export class Dapp extends React.Component {
     this._pollDataInterval = undefined;
   }
 
-  // The next two methods just read from the contract and store the results
-  // in the component state.
-  async _getTokenData() {
-    const name = await this._token.name();
-    const symbol = await this._token.symbol();
-
-    this.setState({ tokenData: { name, symbol } });
-  }
-
   async _updateBalance() {
-    const balance = await this._token.balanceOf(this.state.selectedAddress);
+    const balance = await this._provider.getBalance(this.state.selectedAddress);
     this.setState({ balance });
   }
 
@@ -294,7 +270,7 @@ export class Dapp extends React.Component {
 
       // We send the transaction, and save its hash in the Dapp's state. This
       // way we can indicate that we are waiting for it to be mined.
-      const tx = await this._token.transfer(to, amount);
+      const tx = await this._contract.send_cro_to_crypto_org(to, { value: ethers.BigNumber.from(amount)})
       this.setState({ txBeingSent: tx.hash });
 
       // We use .wait() to wait for the transaction to be mined. This method
