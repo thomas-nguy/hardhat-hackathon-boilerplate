@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 
 // We import the contract's artifacts and address here, as we are going to be
 // using them with ethers
-import CroBridgeArtifact from "../contracts/CroBridge.json";
+import ModuleCRC20Artifact from "../contracts/ModuleCRC20.json";
 
 // All the logic of this dapp is contained in the Dapp component.
 // These other components are just presentational ones: they don't have any
@@ -50,6 +50,7 @@ export class Dapp extends React.Component {
       txBeingSent: undefined,
       transactionError: undefined,
       networkError: undefined,
+      symbol: undefined
     };
 
     this.state = this.initialState;
@@ -87,7 +88,7 @@ export class Dapp extends React.Component {
             <p>
               Welcome <b>{this.state.selectedAddress}</b>, you have{" "}
               <b>
-                {this.state.balance.toString()}
+                {this.state.balance.toString()} {this.state.symbol}
               </b>
               .
             </p>
@@ -215,8 +216,8 @@ export class Dapp extends React.Component {
     // We first initialize ethers by creating a provider using window.ethereum
     this._provider = new ethers.providers.Web3Provider(window.ethereum);
     this._contract = new ethers.Contract(
-        "0x0EE4429270BEAaC2805e00cEd4A8D42DEb607FF4",
-        CroBridgeArtifact.abi,
+        "0x26388d599A677C6A8BCc4c113F0A34e6Ced9493D",
+        ModuleCRC20Artifact.abi,
         this._provider.getSigner(0)
     );
   }
@@ -241,8 +242,10 @@ export class Dapp extends React.Component {
   }
 
   async _updateBalance() {
-    const balance = await this._provider.getBalance(this.state.selectedAddress);
+    const balance = await this._contract.balanceOf(this.state.selectedAddress)
     this.setState({ balance });
+    const symbol = await this._contract.symbol()
+    this.setState({ symbol });
   }
 
   // This method sends an ethereum transaction to transfer tokens.
@@ -270,7 +273,7 @@ export class Dapp extends React.Component {
 
       // We send the transaction, and save its hash in the Dapp's state. This
       // way we can indicate that we are waiting for it to be mined.
-      const tx = await this._contract.send_cro_to_crypto_org(to, { value: ethers.BigNumber.from(amount)})
+      const tx = await this._contract.send_to_ibc(to, ethers.BigNumber.from(amount))
       this.setState({ txBeingSent: tx.hash });
 
       // We use .wait() to wait for the transaction to be mined. This method
