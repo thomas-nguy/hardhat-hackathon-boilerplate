@@ -215,7 +215,7 @@ export class Dapp extends React.Component {
     // We first initialize ethers by creating a provider using window.ethereum
     this._provider = new ethers.providers.Web3Provider(window.ethereum);
     this._contract = new ethers.Contract(
-        "0x0EE4429270BEAaC2805e00cEd4A8D42DEb607FF4",
+        "0x44b8c54d95906D6b223dAE5E038cB8EF4ef45aE5",
         CroBridgeArtifact.abi,
         this._provider.getSigner(0)
     );
